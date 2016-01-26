@@ -15,7 +15,7 @@ import java.util.Map;
  * Time: 17:41
  * Desc:
  */
-public class IocHelper {
+public final class IocHelper {
 
     static {
         Map<Class<?>, Object> beanMap = BeanHelper.getBeanMap();

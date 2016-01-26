@@ -17,7 +17,7 @@ import java.util.*;
  * Time: 11:12
  * Desc:
  */
-public class AopHelper {
+public final class AopHelper {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AopHelper.class);
 

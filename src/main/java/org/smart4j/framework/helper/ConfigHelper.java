@@ -12,7 +12,7 @@ import java.util.Properties;
  * Time: 11:42
  * Desc:
  */
-public class ConfigHelper {
+public final class ConfigHelper {
 
     private static final Properties CONFIG_PROPS = PropsUtil.loadProps(ConfigConstant.CONFIG_FILE);
 

@@ -13,7 +13,7 @@ import java.util.Set;
  * Time: 17:04
  * Desc:
  */
-public class BeanHelper {
+public final class BeanHelper {
     private static final Map<Class<?>, Object> BEAN_MAP = new HashMap<Class<?>, Object>();
 
     static {
