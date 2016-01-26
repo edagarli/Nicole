@@ -3,12 +3,15 @@ package org.edagarli.framework.helper;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.apache.commons.dbutils.QueryRunner;
 import org.apache.commons.dbutils.handlers.BeanHandler;
+import org.apache.commons.dbutils.handlers.BeanListHandler;
+import org.apache.commons.dbutils.handlers.ScalarHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.List;
 
 /**
  * User: lurou
@@ -124,6 +127,36 @@ public final class DatabaseHelper {
             throw new RuntimeException(e);
         }
         return entity;
+    }
+
+    /**
+     * 查询实体列表
+     */
+    public static <T> List<T> queryEntityList(Class<T> entityClass, String sql, Object... params) {
+        List<T> entityList;
+        try {
+            Connection conn = getConnection();
+            entityList = QUERY_RUNNER.query(conn, sql, new BeanListHandler<T>(entityClass), params);
+        } catch (SQLException e) {
+            LOGGER.error("query entity list failure", e);
+            throw new RuntimeException(e);
+        }
+        return entityList;
+    }
+
+    /**
+     * 查询并返回单个列值
+     */
+    public static <T> T query(String sql, Object... params) {
+        T obj;
+        try {
+            Connection conn = getConnection();
+            obj = QUERY_RUNNER.query(conn, sql, new ScalarHandler<T>(), params);
+        } catch (SQLException e) {
+            LOGGER.error("query failure", e);
+            throw new RuntimeException(e);
+        }
+        return obj;
     }
 
 

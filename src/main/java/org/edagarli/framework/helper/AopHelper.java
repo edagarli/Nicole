@@ -1,9 +1,11 @@
 package org.edagarli.framework.helper;
 
 import org.edagarli.framework.annotation.Aspect;
+import org.edagarli.framework.annotation.Service;
 import org.edagarli.framework.proxy.AspectProxy;
 import org.edagarli.framework.proxy.Proxy;
 import org.edagarli.framework.proxy.ProxyManager;
+import org.edagarli.framework.proxy.TransactionProxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,17 +48,27 @@ public final class AopHelper {
     }
 
     private static  Map<Class<?>, Set<Class<?>>> createProxyMap() throws Exception{
-       Map<Class<?>, Set<Class<?>>> proxyMap = new HashMap<Class<?>, Set<Class<?>>>();
-       Set<Class<?>> proxyClassSet = ClassHelper.getClassSetBySuper(AspectProxy.class);
-       for(Class<?> proxyClass : proxyClassSet){
-            if(proxyClass.isAnnotationPresent(Aspect.class)){
+        Map<Class<?>, Set<Class<?>>> proxyMap = new HashMap<Class<?>, Set<Class<?>>>();
+        addAspectProxy(proxyMap);
+        addTransactionProxy(proxyMap);
+        return proxyMap;
+    }
+
+    private static void addAspectProxy(Map<Class<?>, Set<Class<?>>> proxyMap) throws Exception {
+        Set<Class<?>> proxyClassSet = ClassHelper.getClassSetBySuper(AspectProxy.class);
+        for (Class<?> proxyClass : proxyClassSet) {
+            if (proxyClass.isAnnotationPresent(Aspect.class)) {
                 Aspect aspect = proxyClass.getAnnotation(Aspect.class);
                 Set<Class<?>> targetClassSet = createTargetClassSet(aspect);
                 proxyMap.put(proxyClass, targetClassSet);
             }
-       }
+        }
+    }
 
-       return proxyMap;
+    private static void addTransactionProxy(Map<Class<?>, Set<Class<?>>> proxyMap) {
+        // 使用 TransactionProxy 代理所有 Service 类
+        Set<Class<?>> serviceClassSet = ClassHelper.getClassSetByAnnotation(Service.class);
+        proxyMap.put(TransactionProxy.class, serviceClassSet);
     }
 
     private static Map<Class<?>, List<Proxy>> createTargetMap(Map<Class<?>,Set<Class<?>>> proxyMap) throws Exception {
