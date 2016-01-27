@@ -1,6 +1,7 @@
 package org.edagarli.framework.bean;
 
 import org.edagarli.framework.util.CastUtil;
+import org.edagarli.framework.util.CollectionUtil;
 
 import java.util.Map;
 
@@ -32,5 +33,10 @@ public class Param {
         return paramMap;
     }
 
-    
+    /**
+     * 验证参数是否为空
+     */
+    public boolean isEmpty(){
+        return CollectionUtil.isEmpty(paramMap);
+    }
 }
