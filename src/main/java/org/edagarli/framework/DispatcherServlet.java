@@ -5,6 +5,7 @@ import org.edagarli.framework.bean.Param;
 import org.edagarli.framework.bean.View;
 import org.edagarli.framework.helper.ConfigHelper;
 import org.edagarli.framework.helper.ControllerHelper;
+import org.edagarli.framework.helper.ServletHelper;
 import org.edagarli.framework.util.JsonUtil;
 import org.edagarli.framework.util.ReflectionUtil;
 import org.edagarli.framework.util.StringUtil;
@@ -50,57 +51,62 @@ public class DispatcherServlet extends HttpServlet {
     @Override
     public void service(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 //        super.service(req, resp);
-        String requestMethod = req.getMethod().toLowerCase();
-        String requestPath = req.getPathInfo();
-        //获取Action处理器
-        Handler handler = ControllerHelper.getHandler(requestMethod, requestPath);
-        if(handler != null){
-            //获取Controller 类及其 Bean 实例
-            Class<?> controllerClass = handler.getControllerClass();
-            Object controllerBean = BeanHelper.getBean(controllerClass);
-            Map<String,Object> paramMap = new HashMap<String, Object>();
-            Enumeration<String> paramNames = req.getParameterNames();
-            while (paramNames.hasMoreElements()){
-                String paramName = paramNames.nextElement();
-                String paramValue = req.getParameter(paramName);
-                paramMap.put(paramValue, paramValue);
-            }
-            Param param = new Param(paramMap);
-            Object result;
-            Method actionMethod = handler.getActionMethod();
-            if(param.isEmpty()){
-                result = ReflectionUtil.invokeMethod(controllerBean, actionMethod);
-            }else{
-                result = ReflectionUtil.invokeMethod(controllerBean, actionMethod, param);
-            }
+        ServletHelper.init(req,resp);
+        try{
+            String requestMethod = req.getMethod().toLowerCase();
+            String requestPath = req.getPathInfo();
+            //获取Action处理器
+            Handler handler = ControllerHelper.getHandler(requestMethod, requestPath);
+            if(handler != null){
+                //获取Controller 类及其 Bean 实例
+                Class<?> controllerClass = handler.getControllerClass();
+                Object controllerBean = BeanHelper.getBean(controllerClass);
+                Map<String,Object> paramMap = new HashMap<String, Object>();
+                Enumeration<String> paramNames = req.getParameterNames();
+                while (paramNames.hasMoreElements()){
+                    String paramName = paramNames.nextElement();
+                    String paramValue = req.getParameter(paramName);
+                    paramMap.put(paramValue, paramValue);
+                }
+                Param param = new Param(paramMap);
+                Object result;
+                Method actionMethod = handler.getActionMethod();
+                if(param.isEmpty()){
+                    result = ReflectionUtil.invokeMethod(controllerBean, actionMethod);
+                }else{
+                    result = ReflectionUtil.invokeMethod(controllerBean, actionMethod, param);
+                }
 
-            if(result instanceof View){
-                View view = (View) result;
-                String path = view.getPath();
-                if(StringUtil.isNotEmpty(path)){
-                    if(path.startsWith("/")){
-                        resp.sendRedirect(req.getContextPath() + path);
-                    }else{
-                        Map<String, Object> model = view.getModel();
-                        for(Map.Entry<String,Object> entry : model.entrySet()){
-                            req.setAttribute(entry.getKey(), entry.getValue());
+                if(result instanceof View){
+                    View view = (View) result;
+                    String path = view.getPath();
+                    if(StringUtil.isNotEmpty(path)){
+                        if(path.startsWith("/")){
+                            resp.sendRedirect(req.getContextPath() + path);
+                        }else{
+                            Map<String, Object> model = view.getModel();
+                            for(Map.Entry<String,Object> entry : model.entrySet()){
+                                req.setAttribute(entry.getKey(), entry.getValue());
+                            }
+                            req.getRequestDispatcher(ConfigHelper.getAppJspPath() + path).forward(req, resp);
                         }
-                        req.getRequestDispatcher(ConfigHelper.getAppJspPath() + path).forward(req, resp);
+                    }
+                }else if(result instanceof Data){
+                    Data data = (Data) result;
+                    Object model = data.getModel();
+                    if(model != null){
+                        resp.setContentType("application/json");
+                        resp.setCharacterEncoding("UTF-8");
+                        PrintWriter writer = resp.getWriter();
+                        String json = JsonUtil.toJson(model);
+                        writer.write(json);
+                        writer.flush();
+                        writer.close();
                     }
                 }
-            }else if(result instanceof Data){
-                Data data = (Data) result;
-                Object model = data.getModel();
-                if(model != null){
-                    resp.setContentType("application/json");
-                    resp.setCharacterEncoding("UTF-8");
-                    PrintWriter writer = resp.getWriter();
-                    String json = JsonUtil.toJson(model);
-                    writer.write(json);
-                    writer.flush();
-                    writer.close();
-                }
             }
+        }finally {
+            ServletHelper.destory();
         }
     }
 }
