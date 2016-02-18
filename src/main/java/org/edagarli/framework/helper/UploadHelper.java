@@ -38,7 +38,6 @@ public class UploadHelper {
     public static void init(ServletContext servletContext) {
         File repository = (File) servletContext.getAttribute("javax.servlet.context.tempdir");
         servletFileUpload = new ServletFileUpload(new DiskFileItemFactory(DiskFileItemFactory.DEFAULT_SIZE_THRESHOLD, repository));
-        servletFileUpload = new ServletFileUpload(new DiskFileItemFactory(DiskFileItemFactory.DEFAULT_SIZE_THRESHOLD, repository));
         int uploadLimit = ConfigHelper.getAppUploadLimit();
         if (uploadLimit != 0) {
             servletFileUpload.setFileSizeMax(uploadLimit * 1024 * 1024);

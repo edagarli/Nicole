@@ -32,19 +32,10 @@ import java.util.Map;
 public class DispatcherServlet extends HttpServlet {
     @Override
     public void init(ServletConfig config) throws ServletException {
-//        super.init(config);
         //初始化相关Helper类
         HelperLoader.init();
         //获取ServletContext 对象(用于注册Servlet)
         ServletContext servletContext = config.getServletContext();
-//        //注册处理JSP的Servlet
-//        ServletRegistration jspServlet = servletContext.getServletRegistration("jsp");
-//        jspServlet.addMapping(ConfigHelper.getAppJspPath() + "*");
-//        //注册处理静态资源的默认Servlet
-//        ServletRegistration defaultServlet = servletContext.getServletRegistration("default");
-//        defaultServlet.addMapping("/favicon.ico");
-//        defaultServlet.addMapping(ConfigHelper.getAppAssetPath() + "*");
-
         registerServlet(servletContext);
 
         UploadHelper.init(servletContext);
@@ -62,7 +53,6 @@ public class DispatcherServlet extends HttpServlet {
 
     @Override
     public void service(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-//        super.service(req, resp);
         ServletHelper.init(req,resp);
         try{
             String requestMethod = req.getMethod().toLowerCase();
@@ -78,15 +68,6 @@ public class DispatcherServlet extends HttpServlet {
                 //获取Controller 类及其 Bean 实例
                 Class<?> controllerClass = handler.getControllerClass();
                 Object controllerBean = BeanHelper.getBean(controllerClass);
-//                Map<String,Object> paramMap = new HashMap<String, Object>();
-//                Enumeration<String> paramNames = req.getParameterNames();
-//                while (paramNames.hasMoreElements()){
-//                    String paramName = paramNames.nextElement();
-//                    String paramValue = req.getParameter(paramName);
-//                    paramMap.put(paramValue, paramValue);
-//                }
-//                Param param = new Param(paramMap);
-
                 Param param;
                 if(UploadHelper.isMultipart(req)){
                     param = UploadHelper.createParam(req);
