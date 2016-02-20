@@ -36,6 +36,7 @@ public class DispatcherServlet extends HttpServlet {
         HelperLoader.init();
         //获取ServletContext 对象(用于注册Servlet)
         ServletContext servletContext = config.getServletContext();
+
         registerServlet(servletContext);
 
         UploadHelper.init(servletContext);
