@@ -22,11 +22,13 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="true" />
+        <module name="Nicole" />
         <module name="own-framework" />
         <module name="smart-framework" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
+      <module name="Nicole" target="1.5" />
       <module name="own-framework" target="1.5" />
       <module name="smart-framework" target="1.5" />
     </bytecodeTargetLevel>
