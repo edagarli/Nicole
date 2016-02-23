@@ -11,6 +11,7 @@
     <properties>
         <spring.version>3.1.1.RELEASE</spring.version>
         <freemarker.version>2.3.19</freemarker.version>
+        <ognl.version>2.6.11</ognl.version>
     </properties>
 
     <dependencies>
@@ -158,6 +159,11 @@
             <groupId>org.freemarker</groupId>
             <artifactId>freemarker</artifactId>
             <version>${freemarker.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>opensymphony</groupId>
+            <artifactId>ognl</artifactId>
+            <version>${ognl.version}</version>
         </dependency>
     </dependencies>
 

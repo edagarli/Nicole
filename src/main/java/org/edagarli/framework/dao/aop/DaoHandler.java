@@ -1,9 +1,12 @@
 package org.edagarli.framework.dao.aop;
 
+import ognl.Ognl;
+import ognl.OgnlException;
 import org.edagarli.framework.annotation.Arguments;
 import org.edagarli.framework.annotation.Sql;
 import org.edagarli.framework.dao.def.DaoConstants;
 import org.edagarli.framework.dao.pojo.DaoPage;
+import org.edagarli.framework.dao.util.FreemarkerParseFactory;
 import org.edagarli.framework.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +20,8 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * User: edagarli
@@ -125,7 +130,29 @@ public class DaoHandler implements InvocationHandler{
 
     private String parseSqlTemplate(Method method, String templateSql,  Map<String, Object> sqlParamsMap){
         String executeSql = null;
-        
+        if(StringUtil.isNotEmpty(templateSql)){
+            executeSql = FreemarkerParseFactory.parseTemplateContent(templateSql, sqlParamsMap);
+        }else{
+            String sqlTempletPath = method.getDeclaringClass().getName().replace(".", "/").replace("/dao/", "/sql/") + "_" + method.getName() + ".sql";
+            if (!FreemarkerParseFactory.isExistTemplate(sqlTempletPath)) {
+                sqlTempletPath = method.getDeclaringClass().getName().replace(".", "/") + "_" + method.getName() + ".sql";
+            }
+            LOGGER.debug("Dao-SQL-Path:" + sqlTempletPath);
+            executeSql = FreemarkerParseFactory.parseTemplate(sqlTempletPath, sqlParamsMap);
+        }
         return executeSql;
+    }
+
+    private Map<String, Object> installPlaceholderSqlParam(String executeSql, Map sqlParamsMap) throws OgnlException {
+        Map<String, Object> map = new HashMap<String, Object>();
+        String regEx = ":[ tnx0Bfr]*[0-9a-z.A-Z]+"; // 表示以：开头，[0-9或者.或者A-Z大小都写]的任意字符，超过一个
+        Pattern pat = Pattern.compile(regEx);
+        Matcher m = pat.matcher(executeSql);
+        while (m.find()) {
+            LOGGER.debug(" Match [" + m.group() + "] at positions " + m.start() + "-" + (m.end() - 1));
+            String ognl_key = m.group().replace(":", "").trim();
+            map.put(ognl_key, Ognl.getValue(ognl_key, sqlParamsMap));
+        }
+        return map;
     }
 }

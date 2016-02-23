@@ -55,6 +55,20 @@ public class FreemarkerParseFactory {
         return true;
     }
 
+
+    public static String parseTemplate(String tplName, Map<String, Object> paras) {
+        try {
+            StringWriter swriter = new StringWriter();
+            Template mytpl = _tplConfig.getTemplate(tplName, ENCODE);
+            mytpl.process(paras, swriter);
+            return getSqlText(swriter.toString());
+        } catch (Exception e) {
+            LOGGER.error(e.getMessage(), e.fillInStackTrace());
+            LOGGER.error("发送一次的模板key:{ " + tplName + " }");
+            throw new RuntimeException("解析SQL模板异常");
+        }
+    }
+
     /**
      * 解析ftl
      * @param tplContent
