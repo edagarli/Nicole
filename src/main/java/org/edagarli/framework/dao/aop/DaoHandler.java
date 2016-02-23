@@ -30,7 +30,7 @@ import java.util.regex.Pattern;
  * Time: 23:04
  * Desc:dao 拦截器
  */
-public class DaoHandler implements InvocationHandler{
+public class DaoHandler implements InvocationHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DaoHandler.class);
 
@@ -56,7 +56,7 @@ public class DaoHandler implements InvocationHandler{
     private String dbType;
 
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-         // 返回结果
+        // 返回结果
         Object returnObj = null;
         // SQL模板
         String templateSql = null;
@@ -71,6 +71,7 @@ public class DaoHandler implements InvocationHandler{
 
         String executeSql = parseSqlTemplate(method, templateSql, sqlParamsMap);
 
+        Map<String, Object> sqlMap = installPlaceholderSqlParam(executeSql, sqlParamsMap);
 
 
         if (showSql) {
@@ -80,8 +81,42 @@ public class DaoHandler implements InvocationHandler{
         return returnObj;
     }
 
+    public String getDbType() {
+        return dbType;
+    }
+
+    public JdbcTemplate getJdbcTemplate() {
+        return jdbcTemplate;
+    }
+
+    public String getKeyType() {
+        return keyType;
+    }
+
+    public NamedParameterJdbcTemplate getNamedParameterJdbcTemplate() {
+        return namedParameterJdbcTemplate;
+    }
+
+    private static boolean checkActiveKey(String methodName) {
+        String keys[] = DaoConstants.INF_METHOD_ACTIVE.split(",");
+        for (String s : keys) {
+            if (methodName.startsWith(s))
+                return true;
+        }
+        return false;
+    }
+
+    private static boolean checkBatchKey(String methodName) {
+        String keys[] = DaoConstants.INF_METHOD_BATCH.split(",");
+        for (String s : keys) {
+            if (methodName.startsWith(s))
+                return true;
+        }
+        return false;
+    }
+
+
     /**
-     *
      * @param pageSetting
      * @param method
      * @param sqlParamsMap
@@ -89,27 +124,27 @@ public class DaoHandler implements InvocationHandler{
      * @return
      * @throws Exception
      */
-    private String installDaoMetaData(DaoPage pageSetting, Method method, Map<String, Object> sqlParamsMap, Object[] args) throws Exception{
+    private String installDaoMetaData(DaoPage pageSetting, Method method, Map<String, Object> sqlParamsMap, Object[] args) throws Exception {
         String templateSql = null;
         boolean argumentsFlag = method.isAnnotationPresent(Arguments.class);
         if (argumentsFlag) {
             Arguments arguments = method.getAnnotation(Arguments.class);
             LOGGER.debug("@Arguments---------" + Arrays.toString(arguments.value()));
-            if(arguments.value().length > args.length){
+            if (arguments.value().length > args.length) {
                 throw new Exception("[注释标签]参数数目，不能大于[方法参数]参数数目");
             }
             int argsNum = 0;
-            for(String v : arguments.value()){
-                if(v.equalsIgnoreCase("page")){
+            for (String v : arguments.value()) {
+                if (v.equalsIgnoreCase("page")) {
                     pageSetting.setPage(Integer.parseInt(args[argsNum].toString()));
                 }
-                if(v.equalsIgnoreCase("rows")){
+                if (v.equalsIgnoreCase("rows")) {
                     pageSetting.setPage(Integer.parseInt(args[argsNum].toString()));
                 }
                 sqlParamsMap.put(v, args[argsNum]);
                 argsNum++;
             }
-        }else{
+        } else {
             if (args != null && args.length > 1) {
                 throw new Exception("方法参数数目>=2，方法必须使用注释标签@Arguments");
             } else if (args != null && args.length == 1) {
@@ -128,11 +163,11 @@ public class DaoHandler implements InvocationHandler{
         return templateSql;
     }
 
-    private String parseSqlTemplate(Method method, String templateSql,  Map<String, Object> sqlParamsMap){
+    private String parseSqlTemplate(Method method, String templateSql, Map<String, Object> sqlParamsMap) {
         String executeSql = null;
-        if(StringUtil.isNotEmpty(templateSql)){
+        if (StringUtil.isNotEmpty(templateSql)) {
             executeSql = FreemarkerParseFactory.parseTemplateContent(templateSql, sqlParamsMap);
-        }else{
+        } else {
             String sqlTempletPath = method.getDeclaringClass().getName().replace(".", "/").replace("/dao/", "/sql/") + "_" + method.getName() + ".sql";
             if (!FreemarkerParseFactory.isExistTemplate(sqlTempletPath)) {
                 sqlTempletPath = method.getDeclaringClass().getName().replace(".", "/") + "_" + method.getName() + ".sql";
@@ -154,5 +189,30 @@ public class DaoHandler implements InvocationHandler{
             map.put(ognl_key, Ognl.getValue(ognl_key, sqlParamsMap));
         }
         return map;
+    }
+
+    private Object getReturnDaoResult(String dbType, DaoPage pageSetting, Method method, String executeSql, Map<String, Object> paramMap) {
+        String methodName = method.getName();
+        if (checkActiveKey(methodName)) {
+            if (paramMap != null) {
+                return namedParameterJdbcTemplate.update(executeSql, paramMap);
+            } else {
+                return jdbcTemplate.update(executeSql);
+            }
+        }else if (checkBatchKey(methodName)) {
+            return batchUpdate(executeSql);
+        }
+
+        return null;
+    }
+
+    private int[] batchUpdate(String executeSql) {
+        String[] sqls = executeSql.split(";");
+        if (sqls.length < 100) {
+            return jdbcTemplate.batchUpdate(sqls);
+        }
+        int[] result = new int[sqls.length];
+        
+        return result;
     }
 }
