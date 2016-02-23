@@ -22,7 +22,7 @@ public class FreemarkerParseFactory {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FreemarkerParseFactory.class);
 
-    private static final String ENCODE = "utf-8";
+    private static final String ENCODE = "UTF-8";
 
     private static final Configuration _tplConfig = new Configuration();
 
@@ -41,6 +41,18 @@ public class FreemarkerParseFactory {
         _tplConfig.setNumberFormat("0.#####################");
         _sqlConfig.setTemplateLoader(stringTemplateLoader);
         _sqlConfig.setNumberFormat("0.#####################");
+    }
+
+    public static boolean isExistTemplate(String tplName) {
+        try {
+            Template mytpl = _tplConfig.getTemplate(tplName, ENCODE);
+            if (mytpl == null) {
+                return false;
+            }
+        } catch (Exception e) {
+            return false;
+        }
+        return true;
     }
 
     /**
