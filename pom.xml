@@ -6,10 +6,11 @@
 
     <groupId>org.edagarli</groupId>
     <artifactId>Nicole</artifactId>
-    <version>1.1-SNAPSHOT</version>
+    <version>0.2-SNAPSHOT</version>
 
     <properties>
         <spring.version>3.1.1.RELEASE</spring.version>
+        <freemarker.version>2.3.19</freemarker.version>
     </properties>
 
     <dependencies>
@@ -153,7 +154,11 @@
             <artifactId>spring-context-support</artifactId>
             <version>${spring.version}</version>
         </dependency>
-
+        <dependency>
+            <groupId>org.freemarker</groupId>
+            <artifactId>freemarker</artifactId>
+            <version>${freemarker.version}</version>
+        </dependency>
     </dependencies>
 
 </project>
