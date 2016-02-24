@@ -3,23 +3,29 @@ package org.edagarli.framework.dao.aop;
 import ognl.Ognl;
 import ognl.OgnlException;
 import org.edagarli.framework.annotation.Arguments;
+import org.edagarli.framework.annotation.ResultType;
 import org.edagarli.framework.annotation.Sql;
 import org.edagarli.framework.dao.def.DaoConstants;
 import org.edagarli.framework.dao.pojo.DaoPage;
+import org.edagarli.framework.dao.rowMapper.MiniColumnMapRowMapper;
+import org.edagarli.framework.dao.rowMapper.MiniColumnOriginalMapRowMapper;
 import org.edagarli.framework.dao.util.FreemarkerParseFactory;
+import org.edagarli.framework.util.DaoUtil;
 import org.edagarli.framework.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.jdbc.core.ColumnMapRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.simple.ParameterizedBeanPropertyRowMapper;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.math.BigDecimal;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -73,12 +79,21 @@ public class DaoHandler implements InvocationHandler {
 
         Map<String, Object> sqlMap = installPlaceholderSqlParam(executeSql, sqlParamsMap);
 
+        try {
+            returnObj = getReturnDaoResult(dbType, pageSetting, method, executeSql, sqlMap);
+        } catch (EmptyResultDataAccessException e) {
+            returnObj = null;
+        }
 
         if (showSql) {
             //TODO 待实现
             LOGGER.info("Dao-SQL:\n\n");
         }
         return returnObj;
+    }
+
+    private String getCountSql(String sql) {
+        return "select count(0) from (" + sql + ") tmp_count";
     }
 
     public String getDbType() {
@@ -199,11 +214,84 @@ public class DaoHandler implements InvocationHandler {
             } else {
                 return jdbcTemplate.update(executeSql);
             }
-        }else if (checkBatchKey(methodName)) {
+        } else if (checkBatchKey(methodName)) {
             return batchUpdate(executeSql);
+        } else {
+            Class<?> returnType = method.getReturnType();
+            if(returnType.isPrimitive()){
+                Number number = jdbcTemplate.queryForObject(executeSql, BigDecimal.class);
+                if ("int".equals(returnType.getCanonicalName())) {
+                    return number.intValue();
+                } else if ("long".equals(returnType.getCanonicalName())) {
+                    return number.longValue();
+                } else if ("double".equals(returnType.getCanonicalName())) {
+                    return number.doubleValue();
+                }
+            } else if(returnType.isAssignableFrom(List.class) || returnType.isAssignableFrom(DaoPage.class)){
+                int page = pageSetting.getPage();
+                int rows = pageSetting.getRows();
+                if (page != 0 && rows != 0) {
+                    if(returnType.isAssignableFrom(DaoPage.class)){
+                        if(paramMap != null){
+                            pageSetting.setTotal(namedParameterJdbcTemplate.queryForObject(getCountSql(executeSql), paramMap, Integer.class));
+                        } else{
+                            pageSetting.setTotal(jdbcTemplate.queryForObject(getCountSql(executeSql), Integer.class));
+                        }
+                    }
+                    executeSql = DaoUtil.createPageSql(dbType, executeSql, page, rows);
+                }
+                RowMapper resultType = getListRealType(method);
+                List list;
+                if (paramMap != null) {
+                    list = namedParameterJdbcTemplate.query(executeSql, paramMap, resultType);
+                } else {
+                    list = jdbcTemplate.query(executeSql, resultType);
+                }
+
+                if (returnType.isAssignableFrom(DaoPage.class)) {
+                    pageSetting.setResults(list);
+                    return pageSetting;
+                } else {
+                    return list;
+                }
+            } else if (returnType.isAssignableFrom(Map.class)) {
+                // Map类型
+                if (paramMap != null) {
+                    return namedParameterJdbcTemplate.queryForObject(executeSql, paramMap, getColumnMapRowMapper());
+                } else {
+                    return jdbcTemplate.queryForObject(executeSql, getColumnMapRowMapper());
+                }
+            } else if (returnType.isAssignableFrom(String.class)) {
+                if (paramMap != null) {
+                    return namedParameterJdbcTemplate.queryForObject(executeSql, paramMap, String.class);
+                } else {
+                    return jdbcTemplate.queryForObject(executeSql, String.class);
+                }
+            } else if (DaoUtil.isWrapClass(returnType)) {
+                if (paramMap != null) {
+                    return namedParameterJdbcTemplate.queryForObject(executeSql, paramMap, returnType);
+                } else {
+                    return jdbcTemplate.queryForObject(executeSql, returnType);
+                }
+            } else {
+                // 对象类型
+                RowMapper<?> rm = ParameterizedBeanPropertyRowMapper.newInstance(returnType);
+                if (paramMap != null) {
+                    return namedParameterJdbcTemplate.queryForObject(executeSql, paramMap, rm);
+                } else {
+                    return jdbcTemplate.queryForObject(executeSql, rm);
+                }
+            }
         }
 
         return null;
+    }
+
+    private void addResulArray(int[] result, int index, int[] arr) {
+        int length = arr.length;
+        for (int i = 0; i < length; i++) {
+            result[index - length + i] = arr[i];
+        }
     }
 
     private int[] batchUpdate(String executeSql) {
@@ -212,7 +300,50 @@ public class DaoHandler implements InvocationHandler {
             return jdbcTemplate.batchUpdate(sqls);
         }
         int[] result = new int[sqls.length];
-        
+        List<String> sqlList = new ArrayList<String>();
+        for (int i = 0; i < sqls.length; i++) {
+            sqlList.add(sqls[i]);
+            if (i % 100 == 0) {
+                addResulArray(result, i + 1, jdbcTemplate.batchUpdate(sqlList.toArray(new String[0])));
+                sqlList.clear();
+            }
+        }
+        addResulArray(result, sqls.length, jdbcTemplate.batchUpdate(sqlList.toArray(new String[0])));
         return result;
     }
+
+    private RowMapper<?> getListRealType(Method method) {
+        ResultType resultType = method.getAnnotation(ResultType.class);
+        if (resultType != null) {
+            if (resultType.value().equals(Map.class)) {
+                return getColumnMapRowMapper();
+            }
+            return ParameterizedBeanPropertyRowMapper.newInstance(resultType.value());
+        }
+        String genericReturnType = method.getGenericReturnType().toString();
+        String realType = genericReturnType.replace("java.util.List", "").replace("<", "").replace(">", "");
+        if (realType.contains("java.util.Map")) {
+            return getColumnMapRowMapper();
+        } else if (realType.length() > 0) {
+            try {
+                return ParameterizedBeanPropertyRowMapper.newInstance(Class.forName(realType));
+            } catch (ClassNotFoundException e) {
+                LOGGER.error(e.getMessage(), e.fillInStackTrace());
+                throw new RuntimeException("dao get class error ,class name is:" + realType);
+            }
+        }
+        return getColumnMapRowMapper();
+    }
+
+
+    private RowMapper<Map<String, Object>> getColumnMapRowMapper() {
+        if (getKeyType().equalsIgnoreCase(LOWER_KEY)) {
+            return new MiniColumnMapRowMapper();
+        } else if (getKeyType().equalsIgnoreCase(UPPER_KEY)) {
+            return new ColumnMapRowMapper();
+        } else {
+            return new MiniColumnOriginalMapRowMapper();
+        }
+    }
+
 }
