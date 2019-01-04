@@ -55,8 +55,6 @@ HelperLoader用于项目启动时候加载到内存，包含:
      void insert(Employee employee);
    }
     
-    
-    
 ### SQL文件[EmployeeDao_getAllEmployees.sql]
     SELECT * FROM employee where 1=1 
     <#if employee.age ?exists>
@@ -70,7 +68,6 @@ HelperLoader用于项目启动时候加载到内存，包含:
     </#if>
 
 ### Dao接口配置
-        <!-- 注册MiniDao接口 -->
 	<bean class="org.edagarli.framework.dao.factory.MiniDaoBeanFactory">
 		<property name="packagesToScan">
 			<list>
